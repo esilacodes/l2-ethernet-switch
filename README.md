@@ -1,51 +1,53 @@
-# 4-Port Non-Blocking L2 Ethernet Switch (VOQ & iSLIP)
+# 4-Port Non-Blocking L2 Ethernet Switch (VOQ & iSLIP Destekli)
 
-Industrial-grade 4-Port Gigabit Ethernet Layer-2 Store-and-Forward Switch implemented in **Verilog-2001**, featuring **Virtual Output Queuing (VOQ)**, two-dimensional **iSLIP scheduling**, dynamic MAC learning with aging, and AXI4-Stream interfaces.
-
----
-
-## Architecture Highlights
-- **Interface:** Port-level 8-bit AXI4-Stream (`tdata[7:0]`, `tvalid`, `tready`, `tlast`, `tuser`) operating at 125 MHz (1 Gbps line-rate per port, 4 Gbps aggregate non-blocking capacity).
-- **Queuing & HoL Elimination:** 4 Virtual Output Queues per ingress port (16 BRAM Packet FIFOs total), completely eliminating Head-of-Line (HoL) blocking and achieving 100% throughput compared to the ~58.6% limit of single-FIFO switches.
-- **2D Scheduler:** 4x4 Request-Grant-Accept two-dimensional round-robin iSLIP arbiter with desynchronization property.
-- **Packet-Level Locking:** Scheduler grant/accept match is locked until `tlast` is acknowledged, preventing frame interleaving and byte corruption.
-- **Store-and-Forward:** Frames are committed to queue only after full IEEE 802.3 CRC32 verification and length checking (64B min, 1518B max). Corrupted frames trigger write pointer rollback.
-- **MAC Engine:** Dynamic source learning, destination lookup, non-reflection flooding (`(~(1 << ingress_port)) & 4'b1111`), and aging timer.
-- **Timing & Synthesis:** Skid Buffers (2-stage register slices) on all interfaces to eliminate combinational loops; 100% synthesizable in Yosys and Vivado with zero latches.
+**Verilog-2001** standardında geliştirilmiş; **Sanal Çıkış Kuyruklaması (VOQ - Virtual Output Queuing)**, iki boyutlu **iSLIP hakem algoritması**, dinamik **MAC öğrenme & yaşlandırma (aging)** tablosu ve **AXI4-Stream** arayüzlerine sahip endüstriyel standartta 4-Port Gigabit Ethernet Katman-2 (L2) Store-and-Forward Switch donanım tasarımı.
 
 ---
 
-## Repository Structure
+## 🚀 Öne Çıkan Mimari Özellikler
+
+* **Arayüz & Hız:** Port başına 8-bit AXI4-Stream (`tdata[7:0]`, `tvalid`, `tready`, `tlast`, `tuser`). 125 MHz tekil saat bölgesi (Port başına 1 Gbps hat hızı, toplam **4 Gbps non-blocking** anahtarlama kapasitesi).
+* **Head-of-Line (HoL) Bloklamasını Önleme:** Giriş başına 4 VOQ (toplam **16 bağımsız BRAM Packet FIFO**) ile klasik tek FIFO'lu switch'lerdeki %58.58 ($1 - 1/e$) throughput tavanı tamamen kırılarak **%100 hat hızı (line-rate)** elde edilir.
+* **2D iSLIP Zamanlayıcı:** Nick McKeown tarafından geliştirilen 4x4 Request-Grant-Accept döngüsel öncelikli (round-robin) hakem algoritması ve desenkronizasyon (desynchronization) güvencesi.
+* **Paket Düzeyinde Kilitleme (Packet-Level Locking):** Çıkış hatlarında paket baytlarının birbirine karışmaması için hakem eşleşmesi çerçevenin son baytı (`tlast`) onaylanana kadar kilitli tutulur.
+* **Store-and-Forward Doğrulaması:** Paketler, IEEE 802.3 CRC32 (FCS) kontrolü ve boyut denetimi (64B min, 1518B max) başarıyla tamamlanmadan çıkışa sürülmez. Bozuk paketler yazma göstergeci geri sarılarak (**rollback**) bellekten otomatik silinir.
+* **Dinamik MAC Tablosu:** Kaynak MAC öğrenme, hedef MAC arama, dinamik aging (eskime sayacı), geldiği port hariç taşırma (**non-reflection flooding**: `(~(1 << ingress_port)) & 4'b1111`) ve read-while-write çakışma yönetimi.
+* **Zamanlama ve Sentez Güvencesi:** `tvalid` ve `tready` hatlarında 2-kademeli Skid Buffer (Register Slice) kullanımı ile kombinasyonel döngüler tamamen kesilir. Sıfır bubble cycle, sıfır latch ve Yosys/Vivado ile tam sentezlenebilirlik.
+
+---
+
+## 📁 Proje Dizin Yapısı
 
 ```
 .
-├── rtl/                        # Verilog-2001 Synthesizable RTL Modules
-│   ├── axis_skid_buffer.v      # Fully registered AXI4-Stream Register Slice (0 bubble cycles)
-│   └── crc_func.vh             # 8-bit parallel IEEE 802.3 CRC32 matrix equations
-├── tb/                         # Self-checking Testbenches
-│   └── tb_axis_skid_buffer.v   # Skid buffer verification & random fuzzing testbench
-├── docs/                       # Specifications and Architecture Documents
-│   ├── L2_Ethernet_Switch_Technical_Architecture_Spec.pdf
-│   └── generate_pdf.py         # ReportLab specification generator
-└── README.md
+├── rtl/                        # Verilog-2001 Sentezlenebilir RTL Donanım Modülleri
+│   ├── axis_skid_buffer.v      # Tam kayıtlı AXI4-Stream Skid Buffer (0 bubble cycle)
+│   └── crc_func.vh             # 8-bit paralel IEEE 802.3 CRC32 matris fonksiyonu
+├── tb/                         # Kendi Kendini Doğrulayan (Self-Checking) Testbench'ler
+│   └── tb_axis_skid_buffer.v   # Skid buffer doğrulama ve rastgele fuzzing testbench'i
+├── docs/                       # Mimari El Kitapları ve Teknik Dokümantasyon
+│   ├── L2_Ethernet_Switch_Technical_Architecture_Spec.pdf # Kapsamlı mimari spesifikasyon PDF'i
+│   └── generate_pdf.py         # ReportLab mimari doküman üretici scripti
+└── README.md                   # Proje ana tanıtım ve yol haritası dokümanı
 ```
 
 ---
 
-## Development Roadmap & Status
+## 🗺️ Geliştirme Fazları ve Güncel Durum
 
-| Phase | Module | Description | Status |
+| Faz | Modül Dosyası | Açıklama ve Kabul Kriteri | Durum |
 |---|---|---|---|
-| **Phase 1** | `axis_skid_buffer.v` | Decouples ready/valid, breaks combinational loops | ✅ Completed |
-| **Phase 1** | `crc32_checker.v` | 8-bit parallel Ethernet FCS & 0xDEBB20E3 verification | 🔄 In Progress |
-| **Phase 1** | `packet_parser.v` | Ethernet header FSM, Runt (<64B) & Oversize (>1518B) drops | ⏳ Pending |
-| **Phase 2** | `packet_fifo.v` & `voq_block.v` | BRAM store-and-forward FIFO with rollback & 16-VOQ matrix | ⏳ Pending |
-| **Phase 3** | `mac_table.v` | Dynamic source learning, non-reflection flooding & aging | ⏳ Pending |
-| **Phase 4** | `islip_scheduler_4x4.v` & `crossbar_4x4.v` | 2D Request-Grant-Accept arbiter with packet locking & 4x4 crossbar | ⏳ Pending |
-| **Phase 5** | `stats_collector.v` & `switch_top.v` | Hardware counters & Top-level integration | ⏳ Pending |
-| **Phase 6** | Cocotb / Scapy Framework | Python-based end-to-end traffic injection, `.pcap` capture & Throughput graphs | ⏳ Pending |
+| **Faz 1** | `axis_skid_buffer.v` | `ready`/`valid` döngülerini kıran 2 kademeli register slice | ✅ **Tamamlandı** |
+| **Faz 1** | `crc32_checker.v` | 8-bit paralel Ethernet FCS & `0xDEBB20E3` kalıntı denetimi | 🔄 **Sırada** |
+| **Faz 1** | `packet_parser.v` | Ethernet FSM, Runt (<64B) ve Oversize (>1518B) filtreleme | ⏳ Beklemede |
+| **Faz 1** | `tb_ingress_pipeline.v`| **Kontrol Noktası 1:** Tek port uçtan uca giriş hattı doğrulaması | ⏳ Beklemede |
+| **Faz 2** | `packet_fifo.v` & `voq_block.v` | BRAM tabanlı commit/rollback FIFO ve 16'lı VOQ matrisi | ⏳ Beklemede |
+| **Faz 3** | `mac_table.v` | Dinamik kaynak öğrenme, non-reflection flooding ve aging | ⏳ Beklemede |
+| **Faz 4** | `islip_scheduler_4x4.v` & `crossbar_4x4.v` | 2D Request-Grant-Accept hakemi, paket kilidi ve 4x4 crossbar | ⏳ Beklemede |
+| **Faz 5** | `stats_collector.v` & `switch_top.v` | Donanım sayaçları ve 4 portlu Top-Level entegrasyonu | ⏳ Beklemede |
+| **Faz 6** | Cocotb & Scapy Doğrulaması | Python ile trafik enjeksiyonu, `.pcap` dökümü ve Karşılaştırma Grafiği | ⏳ Beklemede |
 
 ---
 
-## Documentation
-A full technical architecture and design specification is available in [`docs/L2_Ethernet_Switch_Technical_Architecture_Spec.pdf`](docs/L2_Ethernet_Switch_Technical_Architecture_Spec.pdf).
+## 📖 Kapsamlı Mimari Dokümanı
+Projenin tüm matematiksel formülleri, sinyal dalga şekilleri, sonlu durum makineleri (FSM) ve donanım register haritalarını içeren detaylı teknik spesifikasyon PDF'ine [`docs/L2_Ethernet_Switch_Technical_Architecture_Spec.pdf`](docs/L2_Ethernet_Switch_Technical_Architecture_Spec.pdf) dosyasından ulaşabilirsiniz.
