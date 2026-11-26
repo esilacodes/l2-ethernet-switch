@@ -1,0 +1,18 @@
+# Simulation & EDA Artifacts
+*.vcd
+*.fst
+*.vvp
+*.o
+*.out
+*.log
+sim/
+build/
+work/
+__pycache__/
+*.pyc
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
